@@ -1,0 +1,244 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyPO3lVS3X4FUhUVAIwmDlRx",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/arshbhushan/Resume-Matcher/blob/main/templates/index.html\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "mIbUs9ln9ul7",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "5f790aa6-6bc1-4d70-bfd0-a372c29985f6"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Collecting docx2txt\n",
+            "  Downloading docx2txt-0.8.tar.gz (2.8 kB)\n",
+            "  Preparing metadata (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "Building wheels for collected packages: docx2txt\n",
+            "  Building wheel for docx2txt (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "  Created wheel for docx2txt: filename=docx2txt-0.8-py3-none-any.whl size=3960 sha256=b72196a8001dcadcd418363b354df7a6b4532efbe7509ce76cdbb5612398e3f1\n",
+            "  Stored in directory: /root/.cache/pip/wheels/0f/0e/7a/3094a4ceefe657bff7e12dd9592a9d5b6487ef4338ace0afa6\n",
+            "Successfully built docx2txt\n",
+            "Installing collected packages: docx2txt\n",
+            "Successfully installed docx2txt-0.8\n",
+            "Collecting PyPDF2\n",
+            "  Downloading pypdf2-3.0.1-py3-none-any.whl.metadata (6.8 kB)\n",
+            "Downloading pypdf2-3.0.1-py3-none-any.whl (232 kB)\n",
+            "\u001b[2K   \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m232.6/232.6 kB\u001b[0m \u001b[31m8.6 MB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\n",
+            "\u001b[?25hInstalling collected packages: PyPDF2\n",
+            "Successfully installed PyPDF2-3.0.1\n"
+          ]
+        }
+      ],
+      "source": [
+        "from flask import Flask,request,render_template\n",
+        "import os\n",
+        "!pip install docx2txt\n",
+        "import docx2txt\n",
+        "!pip install PyPDF2\n",
+        "import PyPDF2\n",
+        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "from sklearn.metrics.pairwise import cosine_similarity"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "app = Flask(__name__)"
+      ],
+      "metadata": {
+        "id": "31PwEWLkE43s"
+      },
+      "execution_count": 2,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# set the upload folder in order to save the uploaded files\n",
+        "app.config['UPLOAD_FOLDER'] ='uploads/'"
+      ],
+      "metadata": {
+        "id": "NzWPjFEhFLC1"
+      },
+      "execution_count": 3,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def extract_text_from_pdf(file_path):\n",
+        "  text= \"\"\n",
+        "  #open file in binary mode:\n",
+        "  with open(file_path,'rb')as file:\n",
+        "    reader= PyPDF2.PdfFileReader(file)\n",
+        "\n",
+        "    #extract the text from the pdf\n",
+        "    for page in reader.pages:\n",
+        "      text+= page.extract_text()\n",
+        "\n",
+        "  return text"
+      ],
+      "metadata": {
+        "id": "D_QgrQbkFeFF"
+      },
+      "execution_count": 4,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# extract text from docx\n",
+        "def extract_text_from_docx(file_path):\n",
+        "    return docx2txt.process(file_path)"
+      ],
+      "metadata": {
+        "id": "0eTBFkKvGNoH"
+      },
+      "execution_count": 5,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def extract_text_from_txt(file_path):\n",
+        "  with open(file_path, 'r', encoding='utf-8') as file:\n",
+        "    return file.read()"
+      ],
+      "metadata": {
+        "id": "-B-nN8caHsCX"
+      },
+      "execution_count": 6,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#\n",
+        "def extract_text(file_path):\n",
+        "  if file_path.endswith('.pdf'):\n",
+        "    return extract_text_from_pdf(file_path)\n",
+        "\n",
+        "  elif file_path.endswith('.docx'):\n",
+        "    return extract_text_from_docx(file_path)\n",
+        "\n",
+        "  elif file_path.endswith('.txt'):\n",
+        "    return extract_text_from_txt(file_path)\n",
+        "\n",
+        "  else:\n",
+        "      return \"unable to read file, please check the format of the file.\""
+      ],
+      "metadata": {
+        "id": "05vVnWsXGjNP"
+      },
+      "execution_count": 7,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "@app.route(\"/\", endpoint='index') # Change endpoint to a unique name like 'index'\n",
+        "def matchresume():\n",
+        "  return render_template('index.html')"
+      ],
+      "metadata": {
+        "id": "ACsAh4SXmnuh"
+      },
+      "execution_count": 11,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# route for handling the resume\n",
+        "def matcher():\n",
+        "  if request.method == 'POST':\n",
+        "    job_description= request.form['job-description']\n",
+        "    resume_files= request.files.getlist('resume')\n",
+        "\n",
+        "    resumes= []\n",
+        "\n",
+        "    for resume_file in resume_files:\n",
+        "        filename= os.path.join(app.config['UPLOAD_FOLDER'], resume_file.filename)\n",
+        "        resume_file.save(filename)\n",
+        "        resumes.append(extract_text(filename))\n",
+        "\n",
+        "    #check for the availability of both the description of the job and resume\n",
+        "    if not resumes or not job_description:\n",
+        "        return render_template('index.html',message=\"Please upoad resume and enter job description.\")\n",
+        "\n",
+        "    # vectorise job_description\n",
+        "    vectorizer= TfidfVectorizer().fit_transform([job_description]+resumes)\n",
+        "    vectors= vectorizer.toarray()\n",
+        "\n",
+        "    #calculate cosin similarity for matching\n",
+        "    job_vector= vectors[0]\n",
+        "    resume_vectors= vectors[1:]\n",
+        "\n",
+        "    similarities= cosine_similarity([job_vector],resume_vectors)\n",
+        "\n",
+        "    # get to two results\n",
+        "    top_indices=similarities.argsort()[-5:][::-1]\n",
+        "    top_resume= [resume_files[i].filename for i in top_indices]\n",
+        "    similarity_scores= [round(similarities[i],2) for i in top_indices]\n",
+        "\n",
+        "    return render_template('index.html',message=[\"Top matching resumes:\"],top_resume=top_resume,similarity_scores=similarity_scores)\n",
+        "\n",
+        "    #render the final template\n",
+        "    return render_template('index.html',message=message,top_resume=top_resume,similarity_scores=similarity_scores)"
+      ],
+      "metadata": {
+        "id": "yTeQ1u0DoJJM"
+      },
+      "execution_count": 17,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# run the app\n",
+        "if __name__ == '__main__':\n",
+        "  # check if the upload folder is created\n",
+        "  if not os.path.exists(app.config['UPLOAD_FOLDER']):\n",
+        "    os.makedirs(app.config['UPLOAD_FOLDER'])\n",
+        "\n",
+        "  app.run(debug=True)"
+      ],
+      "metadata": {
+        "id": "nIcjZiYUtHBL"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
